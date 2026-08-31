@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>마라탕 조합기</title>
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; background:#f9f6ff; }
+    h2 { color: #d14; text-align:center; }
+    .container { display: flex; flex-wrap: wrap; gap: 20px; }
+    fieldset { flex: 1; min-width: 250px; border:1px solid #ccc; padding:10px; }
+    label { display: block; margin: 5px 0; }
+    .total { font-weight: bold; color: #7a4eb3; font-size: 1.2em; margin-top:20px; text-align:center; }
+    table { width: 80%; margin: 0 auto; border-collapse: collapse; margin-top:20px; font-size: 0.85em; }
+    th, td { border: 1px solid #ccc; padding: 6px; text-align: center; }
+    th { background: #eee; }
+    .summary { font-weight:bold; margin-top:10px; text-align:center; font-size:0.9em; }
+    .select-all { text-align:center; margin:15px 0; }
+  </style>
+</head>
+<body>
+  <h2>마라탕 조합기</h2>
+  
+  <!-- 전체 선택 체크박스 -->
+  <div class="select-all">
+    <label><input type="checkbox" id="selectAll"> 전체 선택/해제</label>
+  </div>
+
+  <form id="menuForm" class="container"></form>
+
+  <p class="total">총합: <span id="total">0</span></p>
+
+  <table id="selectedTable">
+    <thead>
+      <tr>
+        <th>항목명</th>
+        <th>가격</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <p class="summary">선택 항목 개수: <span id="count">0</span></p>
+
+  <script>
+    // 강혁님 지정 항목 데이터 (전체 리스트 반영)
+    const items = [
+      {name:"아웃송", price:199},{name:"양탈춤", price:499},{name:"뽀뽀", price:500},
+      {name:"삐삐", price:500},{name:"외모체크", price:699},{name:"노래한곡", price:1000},
+      {name:"이멀전시", price:99},{name:"우치다", price:99},{name:"룩앳미", price:100},
+      {name:"홀덥", price:199},{name:"전파챌린지", price:199},{name:"이쿠요잇", price:199},
+      {name:"마그네틱", price:199},{name:"진격거", price:299},{name:"코카인", price:299},
+      {name:"뽁뽁이", price:399},{name:"마티니", price:400},{name:"모시모시", price:450},
+      {name:"잇지행진곡", price:450},{name:"If You Love Me", price:450},{name:"스폰지밥", price:500},
+      {name:"도마", price:500},{name:"이글루", price:500},{name:"조림", price:500},
+      {name:"자기야화풀어", price:500},{name:"RUDE!", price:500},{name:"랜덤 아웃송", price:500},
+      {name:"빅가이", price:500},{name:"어잇", price:600},{name:"제로투", price:700},
+      {name:"패스트카", price:899},{name:"핑크레이디", price:999},{name:"블루발렌타인", price:1000},
+      {name:"무아", price:1000},{name:"더티워크", price:1000},{name:"립힙키", price:1000},
+      {name:"매니악", price:1000},{name:"핫해", price:1000},{name:"레드레드", price:1088},
+      {name:"무브", price:1000},{name:"스윙", price:1099},{name:"연애의 조건", price:1200},
+      {name:"럼블", price:1300},{name:"예나25", price:1500},{name:"여우", price:1500},
+      {name:"겐또", price:1500},{name:"뛰어", price:1500},{name:"슈퍼그럼요", price:1500},
+      {name:"팡파레", price:1599},{name:"비장의 무기", price:1800},{name:"우유", price:1999},
+      {name:"이뻐이뻐", price:1999},{name:"BAD", price:1999},{name:"슈팅스타", price:2000},
+      {name:"게엄령", price:2199},{name:"체리스카이", price:2200},{name:"댓츠노노", price:2200},
+      {name:"웁스", price:2500},{name:"스티키", price:2988},{name:"스윗", price:2999},
+      {name:"뱅뱅", price:3000},{name:"캐치캐치", price:3200},{name:"현정연서", price:4000},
+      {name:"24시간이 모자라", price:4088},{name:"갓잇", price:4500},{name:"비유어캣", price:4888},
+      {name:"숭어머신", price:4888},{name:"제니", price:5000},{name:"부티바운스", price:6000},
+      {name:"룰렛1", price:499},{name:"룰렛2", price:1999},{name:"체인소맨", price:1400},
+      {name:"코난", price:2199},{name:"여름이었다", price:2999},{name:"나루토", price:1400},
+      {name:"핑크베놈", price:1400}
+    ];
+
+    // 가격 오름차순 정렬
+    items.sort((a,b) => a.price - b.price);
+
+    // 14개씩 그룹 나누기
+    const form = document.getElementById("menuForm");
+    for (let i=0; i<items.length; i+=14) {
+      const group = items.slice(i, i+14);
+      const fieldset = document.createElement("fieldset");
+
+      group.forEach(item => {
+        const label = document.createElement("label");
+        label.innerHTML = `<input type="checkbox" value="${item.price}" data-name="${item.name}"> ${item.name} (${item.price})`;
+        fieldset.appendChild(label);
+      });
+
+      form.appendChild(fieldset);
+    }
+
+    // 합산 및 선택 항목 표시
+    function calculateTotal() {
+      const checkboxes = document.querySelectorAll('#menuForm input[type="checkbox"]');
+      let total = 0;
+      let count = 0;
+      const tbody = document.querySelector("#selectedTable tbody");
+      tbody.innerHTML = "";
+
+      checkboxes.forEach(cb => {
+        if (cb.checked) {
+          total += parseInt(cb.value, 10);
+          count++;
+          const row = document.createElement("tr");
+          row.innerHTML = `<td>${cb.getAttribute("data-name")}</td><td>${cb.value}</td>`;
+          tbody.appendChild(row);
+        }
+      });
+
+      document.getElementById("total").textContent = total;
+      document.getElementById("count").textContent = count;
+    }
+
+    // 이벤트 연결
+    document.querySelectorAll('#menuForm input[type="checkbox"]').forEach(cb => {
+      cb.addEventListener('change', calculateTotal);
+    });
+
+    // 전체 선택/해제 기능
+    document.getElementById("selectAll").addEventListener("change", function() {
+      const checkboxes = document.querySelectorAll('#menuForm input[type="checkbox"]');
+      checkboxes.forEach(cb => cb.checked = this.checked);
+      calculateTotal();
+    });
+  </script>
+</body>
+</html>
