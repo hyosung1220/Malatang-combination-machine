@@ -10,11 +10,13 @@
     fieldset { flex: 1; min-width: 250px; border:1px solid #ccc; padding:10px; }
     label { display: block; margin: 5px 0; }
     .total { font-weight: bold; color: #7a4eb3; font-size: 1.2em; margin-top:20px; text-align:center; }
-    table { width: 80%; margin: 0 auto; border-collapse: collapse; margin-top:20px; font-size: 0.85em; }
+    table { width: 30%; margin: 10px; border-collapse: collapse; font-size: 0.85em; }
     th, td { border: 1px solid #ccc; padding: 6px; text-align: center; }
     th { background: #eee; }
-    .summary { font-weight:bold; margin-top:10px; text-align:center; font-size:0.9em; }
+    .summary { font-weight:bold; margin-top:10px; text-align:center; font-size:0.9em; clear:both; }
     .select-all { text-align:center; margin:15px 0; }
+    .tables-container { display:flex; justify-content:center; flex-wrap:wrap; margin-top:20px; }
+    .copy-area { text-align:center; margin:20px; }
   </style>
 </head>
 <body>
@@ -25,26 +27,30 @@
     <label><input type="checkbox" id="selectAll"> 전체 선택/해제</label>
   </div>
 
+  <!-- 76개 항목 체크박스 -->
   <form id="menuForm" class="container"></form>
 
   <p class="total">총합: <span id="total">0</span></p>
-
-  <table id="selectedTable">
-    <thead>
-      <tr>
-        <th>항목명</th>
-        <th>가격</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-
   <p class="summary">선택 항목 개수: <span id="count">0</span></p>
 
+  <!-- 랜덤 조합 버튼 -->
+  <div style="text-align:center; margin:15px;">
+    <input type="number" id="targetAmount" placeholder="금액 입력">
+    <button id="dpRandomMultiBtn">마라탕 조합하기!</button>
+  </div>
+
+  <!-- 3개 조합 테이블을 담을 컨테이너 -->
+  <div class="tables-container" id="tablesContainer"></div>
+
+  <!-- 텍스트 복사 영역 -->
+  <div class="copy-area">
+    <textarea id="comboText" rows="12" cols="70" readonly></textarea><br>
+    <button id="copyBtn">복사하기</button>
+  </div>
   <script>
-    // 강혁님 지정 항목 데이터 (전체 리스트 반영)
+    // 항목 데이터 (76개)
     const items = [
-      {name:"아웃송", price:199},{name:"양탈춤", price:499},{name:"뽀뽀", price:500},
+      {name:"아웃송", price:199},{name:"앙탈춤", price:499},{name:"뽀뽀", price:500},
       {name:"삐삐", price:500},{name:"외모체크", price:699},{name:"노래한곡", price:1000},
       {name:"이멀전시", price:99},{name:"우치다", price:99},{name:"룩앳미", price:100},
       {name:"홀덥", price:199},{name:"전파챌린지", price:199},{name:"이쿠요잇", price:199},
@@ -72,56 +78,140 @@
       {name:"핑크베놈", price:1400}
     ];
 
-    // 가격 오름차순 정렬
     items.sort((a,b) => a.price - b.price);
 
-    // 14개씩 그룹 나누기
     const form = document.getElementById("menuForm");
     for (let i=0; i<items.length; i+=14) {
       const group = items.slice(i, i+14);
       const fieldset = document.createElement("fieldset");
-
       group.forEach(item => {
         const label = document.createElement("label");
         label.innerHTML = `<input type="checkbox" value="${item.price}" data-name="${item.name}"> ${item.name} (${item.price})`;
         fieldset.appendChild(label);
       });
-
       form.appendChild(fieldset);
     }
-
-    // 합산 및 선택 항목 표시
     function calculateTotal() {
       const checkboxes = document.querySelectorAll('#menuForm input[type="checkbox"]');
       let total = 0;
       let count = 0;
-      const tbody = document.querySelector("#selectedTable tbody");
-      tbody.innerHTML = "";
-
       checkboxes.forEach(cb => {
         if (cb.checked) {
           total += parseInt(cb.value, 10);
           count++;
-          const row = document.createElement("tr");
-          row.innerHTML = `<td>${cb.getAttribute("data-name")}</td><td>${cb.value}</td>`;
-          tbody.appendChild(row);
         }
       });
-
       document.getElementById("total").textContent = total;
       document.getElementById("count").textContent = count;
     }
 
-    // 이벤트 연결
     document.querySelectorAll('#menuForm input[type="checkbox"]').forEach(cb => {
       cb.addEventListener('change', calculateTotal);
     });
 
-    // 전체 선택/해제 기능
     document.getElementById("selectAll").addEventListener("change", function() {
       const checkboxes = document.querySelectorAll('#menuForm input[type="checkbox"]');
       checkboxes.forEach(cb => cb.checked = this.checked);
       calculateTotal();
+    });
+    // 마라탕 조합하기 버튼
+    document.getElementById("dpRandomMultiBtn").addEventListener("click", function() {
+      const target = parseInt(document.getElementById("targetAmount").value, 10);
+      if (isNaN(target) || target <= 0) {
+        alert("올바른 금액을 입력하세요!");
+        return;
+      }
+
+      const prices = items.map(it => it.price);
+      const names = items.map(it => it.name);
+
+      // DP 배열
+      let dp = Array(target+1).fill(false);
+      dp[0] = true;
+      let choice = Array(target+1).fill(null).map(() => []);
+
+      for (let i=0; i<prices.length; i++) {
+        const price = prices[i];
+        for (let t=target; t>=price; t--) {
+          if (dp[t-price]) {
+            dp[t] = true;
+            choice[t].push(i);
+          }
+        }
+      }
+
+      // 목표 이하에서 가장 큰 합계
+      let bestSum = 0;
+      for (let t=target; t>=0; t--) {
+        if (dp[t]) { bestSum = t; break; }
+      }
+
+      // 랜덤 3개 조합 생성
+      const results = [];
+      for (let k=0; k<3; k++) {
+        let sum = bestSum;
+        let selected = [];
+        while (sum > 0 && choice[sum].length > 0) {
+          const idx = choice[sum][Math.floor(Math.random() * choice[sum].length)];
+          selected.push(idx);
+          sum -= prices[idx];
+        }
+        results.push(selected);
+      }
+
+      // 결과 테이블 표시 + 각 조합 텍스트 저장
+      const container = document.getElementById("tablesContainer");
+      container.innerHTML = "";
+      let allComboTexts = [];
+
+      results.forEach((set, i) => {
+        const table = document.createElement("table");
+        const header = document.createElement("tr");
+        header.innerHTML = `<th colspan="2">조합 ${i+1} 
+          <input type="checkbox" class="copyCheck" data-index="${i}"> 복사대상</th>`;
+        table.appendChild(header);
+
+        let total = 0;
+        let comboText = `조합 ${i+1}\n`;
+        set.forEach(idx => {
+          const row = document.createElement("tr");
+          row.innerHTML = `<td>${names[idx]}</td><td>${prices[idx]}</td>`;
+          table.appendChild(row);
+          total += prices[idx];
+          comboText += `${names[idx]} (${prices[idx]})\n`;
+        });
+
+        const totalRow = document.createElement("tr");
+        totalRow.innerHTML = `<td>합계</td><td>${total}</td>`;
+        table.appendChild(totalRow);
+        container.appendChild(table);
+
+        comboText += `합계: ${total}\n\n`;
+        allComboTexts.push(comboText);
+      });
+
+      // 전체 조합 텍스트 저장
+      window.comboTexts = allComboTexts;
+    });
+    // 복사하기 버튼 기능
+    document.getElementById("copyBtn").addEventListener("click", function() {
+      const checks = document.querySelectorAll(".copyCheck");
+      let textOutput = "";
+      checks.forEach(chk => {
+        if (chk.checked) {
+          const idx = parseInt(chk.dataset.index, 10);
+          textOutput += window.comboTexts[idx];
+        }
+      });
+      if (textOutput === "") {
+        alert("복사할 조합을 선택하세요!");
+        return;
+      }
+      const textArea = document.getElementById("comboText");
+      textArea.value = textOutput;
+      textArea.select();
+      document.execCommand("copy");
+      alert("선택한 조합이 클립보드에 복사되었습니다!");
     });
   </script>
 </body>
