@@ -146,18 +146,51 @@
         if (dp[t]) { bestSum = t; break; }
       }
 
-      // 랜덤 3개 조합 생성
-      const results = [];
-      for (let k=0; k<3; k++) {
-        let sum = bestSum;
-        let selected = [];
-        while (sum > 0 && choice[sum].length > 0) {
-          const idx = choice[sum][Math.floor(Math.random() * choice[sum].length)];
-          selected.push(idx);
-          sum -= prices[idx];
-        }
-        results.push(selected);
-      }
+     // 랜덤 3개 조합 생성 (중복 제거)
+const results = [];
+const usedCombinations = new Set();
+
+let attempts = 0;
+
+while (results.length < 3 && attempts < 500) {
+
+  attempts++;
+
+  let sum = bestSum;
+  let selected = [];
+
+  while (sum > 0 && choice[sum].length > 0) {
+
+    const available =
+      choice[sum].filter(
+        idx => !selected.includes(idx)
+      );
+
+    if (available.length === 0) break;
+
+    const idx =
+      available[
+        Math.floor(
+          Math.random() * available.length
+        )
+      ];
+
+    selected.push(idx);
+    sum -= prices[idx];
+  }
+
+  if (selected.length === 0) continue;
+
+  const key =
+    [...selected]
+      .sort((a,b)=>a-b)
+      .join(",");
+
+  if (!usedCombinations.has(key)) {
+    usedCombinations.add(key);
+    results.push(selected);
+  }
+}
 
       // 결과 테이블 표시 + 각 조합 텍스트 저장
       const container = document.getElementById("tablesContainer");
@@ -172,13 +205,13 @@
         table.appendChild(header);
 
         let total = 0;
-        let comboText = `조합 ${i+1}\n`;
+        let comboText = `조합 ${i+1} : `;
         set.forEach(idx => {
           const row = document.createElement("tr");
           row.innerHTML = `<td>${names[idx]}</td><td>${prices[idx]}</td>`;
           table.appendChild(row);
           total += prices[idx];
-          comboText += `${names[idx]} (${prices[idx]})\n`;
+          comboText += `${names[idx]}, `;
         });
 
         const totalRow = document.createElement("tr");
@@ -186,7 +219,8 @@
         table.appendChild(totalRow);
         container.appendChild(table);
 
-        comboText += `합계: ${total}\n\n`;
+        comboText = comboText.replace(/, $/, "");
+        comboText += ` | 합계 ${total}\n`;
         allComboTexts.push(comboText);
       });
 
@@ -194,25 +228,59 @@
       window.comboTexts = allComboTexts;
     });
     // 복사하기 버튼 기능
-    document.getElementById("copyBtn").addEventListener("click", function() {
-      const checks = document.querySelectorAll(".copyCheck");
-      let textOutput = "";
-      checks.forEach(chk => {
-        if (chk.checked) {
-          const idx = parseInt(chk.dataset.index, 10);
-          textOutput += window.comboTexts[idx];
-        }
-      });
-      if (textOutput === "") {
-        alert("복사할 조합을 선택하세요!");
-        return;
-      }
-      const textArea = document.getElementById("comboText");
-      textArea.value = textOutput;
-      textArea.select();
-      document.execCommand("copy");
-      alert("선택한 조합이 클립보드에 복사되었습니다!");
-    });
+document.getElementById("copyBtn").addEventListener("click", async function() {
+
+  const checks =
+    document.querySelectorAll(".copyCheck");
+
+  let textOutput = "";
+
+  checks.forEach(chk => {
+
+    if (chk.checked) {
+
+      const idx =
+        parseInt(chk.dataset.index, 10);
+
+      textOutput +=
+        window.comboTexts[idx] + "\n";
+
+    }
+
+  });
+
+  if (textOutput === "") {
+
+    alert("복사할 조합을 선택하세요!");
+
+    return;
+
+  }
+
+  const textArea =
+    document.getElementById("comboText");
+
+  textArea.value = textOutput;
+
+  try {
+
+    await navigator.clipboard.writeText(
+      textOutput
+    );
+
+    alert("복사 완료!");
+
+  } catch {
+
+    textArea.select();
+
+    document.execCommand("copy");
+
+    alert("복사 완료!");
+
+  }
+
+});
   </script>
 </body>
 </html>
